@@ -20,5 +20,6 @@ function main()
 
     // Fecha!
     currentDocument.close()
+	return "1"
 }
 main();

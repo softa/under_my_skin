@@ -1,38 +1,44 @@
-module S3connect
-	@@bucket = "multimedialibrary.net"
+class S3connect
 
-#	def tmp_path p
-#		fpath = "#{RAILS_ROOT}/files/#{p}"
-#		if ! File.exists?(fpath) or File.zero?(fpath)
-#			s3_connect
-#			d = p.split(/\//)
-#			d.pop
-#			path = d.join('/')
-#			FileUtils.mkdir_p "#{RAILS_ROOT}/files/#{path}"
-#			f = File.new(fpath, "w")
-#			f.write( get_file(p) )
-#			f.close
-#		end
-##	end
-
+	# Conecta ao bucket de INDDs
+	def self.indd
+		n = new
+		n.bucket = "youcando-indds"
+		n
+	end
+	def self.assets
+		n = new
+		n.bucket = "youcando-assets"
+		n
+	end
+	def bucket= b
+		@bucket = b
+	end
     def initialize
         s3_connect
     end
 	def get_file p
-		AWS::S3::S3Object.value p, @@bucket
+	#raise p.to_s
+		AWS::S3::S3Object.value p, @bucket
 	end
 	def store_file from, to
-		AWS::S3::S3Object.store to, open(from), @@bucket
+		AWS::S3::S3Object.store to, open(from), @bucket
+	end
+	def store from, to, options={}
+		AWS::S3::S3Object.store (to, File.open(from,'rb').read, @bucket, options)
 	end
 	def rename_file from, to
-		AWS::S3::S3Object.rename from, to, @@bucket
+		AWS::S3::S3Object.rename from, to, @bucket
 	end
 	def copy_file  to
-		AWS::S3::S3Object.copy path, to, @@bucket
+		AWS::S3::S3Object.copy path, to, @bucket
+	end
+	def exists? p
+		AWS::S3::S3Object.exists? p, @bucket
 	end
 
 	def s3url p
-		AWS::S3::S3Object.url_for(p, @@bucket, :expires_in => 60)
+		AWS::S3::S3Object.url_for(p, @bucket, :expires_in => 60)
 	end
 	
 	protected

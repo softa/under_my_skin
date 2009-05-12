@@ -2,8 +2,9 @@ module Indesign
     class Server
         def self.up?
             require 'open-uri'
-            begin
-                open("http://localhost:3000/site/monte")
+           begin
+                open("http://localhost:12345/service?wsdl")
+				
                 return "1"
             rescue => e
                 return "0"
@@ -35,7 +36,8 @@ module Indesign
             return obj.runScript(rsp)
         rescue Errno::ECONNREFUSED => e
             #TODO some log please!
-#            Rails.logger.warn e
+            #Rails.logger.warn e
+			raise e
             return false
         end
         ##

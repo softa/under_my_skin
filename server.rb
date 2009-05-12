@@ -3,6 +3,9 @@ require 'sinatra'
 require 'indesign/server'
 require 'hpricot'
 
+IDS_PORT = "12345"
+CACHE_PATH = "C:/cache"
+
 get '/up?' do
     Indesign::Server.up?
 end
@@ -15,18 +18,36 @@ get '/stop' do
     Indesign::Server.stop
 end
 
-get '/process_indd/:arg0/:arg1/:arg2' do
-    #TODO receber GETs  path_to_indd,  path_to_jpgs,  path_to_xml...
-    #TODO acessar via SOAP e rodar o método process_indd
-    #TODO ver se é mais rápido fazer isso ou fazer pelo cliente que já tem escrito em JAVA... (acho q não vai melhorar...)
-    #    arg0 = "#{Indesign::Server.win_path}in/templates/#{id}/original_#{indd_file_name}"
-    #    arg1 = "#{Indesign::Server.win_path}out/templates/#{id}/#{indd_file_name.gsub(/indd/,'jpg')}"
-    #    arg2 = "#{Indesign::Server.win_path}out/templates/#{id}/#{indd_file_name.gsub(/indd/,'xml')}"
-    #    FileUtils.mkdir_p("win/out/templates/#{id}")
-#raise params.inspect
-    r = Indesign::Server.process_indd(params[:arg0], params[:arg1], params[:arg2])
-    return "0" unless r
-    r.scriptResult.data.inspect
+get '/process_indd/:id/:name' do
+
+	require 's3/s3connect' 
+
+	s3_for_indds = S3connect.indd
+	s3_for_assets = S3connect.assets
+
+	s3_path = "#{params[:id]}-#{params[:name]}"
+	#raise Time.now.to_s
+	local_path = "#{CACHE_PATH}/#{s3_path}"
+	unless File.exists?(local_path)
+		File.open(local_path,'wb'){|f| f.write(s3_for_indds.get_file(s3_path)) }
+		return "-3" unless File.exists?(local_path) or File.zero?(local_path)
+	end
+	thumbs_path = "#{local_path}.jpg"
+	xml_path = "#{local_path}.xml"
+	r = Indesign::Server.process_indd(local_path, thumbs_path, xml_path)
+    return "-2" unless r
+	xml_s3_path = "#{s3_path}.xml"
+	s3_for_assets.store(xml_path, xml_s3_path, :access => :public_read) unless s3_for_assets.exists?(xml_s3_path)
+	
+	for jpg in Dir.glob("#{CACHE_PATH}/#{params[:id]}-*.jpg")
+		jpg_s3_path = jpg.gsub(/#{CACHE_PATH}\//,'')
+		#File.open("C:/cache/fff.jpg","wb"){|f| f.write File.open(jpg,'rb').read }
+		#raise "OK #{jpg}"
+		#raise (File.read(jpg).length / 1024).to_s
+		s3_for_assets.store(jpg, jpg_s3_path, :access => :public_read) unless s3_for_assets.exists?(jpg_s3_path)
+	end
+#	return "-1"
+    return File.read(xml_path)
 end
 
 get '/generate_thumbnail' do
